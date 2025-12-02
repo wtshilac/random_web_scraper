@@ -20,16 +20,18 @@ if not SUPABASE_KEY:
     print("CRITICAL ERROR: SUPABASE_KEY not found in environment variables.")
     exit(1)
 
-# Initialize Client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- EMAIL SETTINGS ---
-# Pulls from GitHub Actions Secrets (or system env vars)
+# --- NOTIFICATION SETTINGS ---
+# Email - Pulls from GitHub Actions Secrets (or system env vars)
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL")
 SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD")
 RECEIVER_EMAIL = os.environ.get("RECEIVER_EMAIL")
+
+# Discord
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 
 def load_existing_ids():
     """Loads all existing product IDs from Supabase to check for duplicates."""
@@ -67,8 +69,13 @@ def save_all_belts(items):
     except Exception as e:
         print(f"Error saving to Supabase: {e}")
 
-def send_notification(new_items):
+def send_email_notification(new_items):
     """Sends an email with the list of NEW items found."""
+    if not (SENDER_EMAIL and SENDER_PASSWORD and RECEIVER_EMAIL):
+        print("Email credentials missing. Skipping email.")
+        return
+
+    print("Sending Email notification...")
     subject = f"Alert: {len(new_items)} New Belts Found!"
     
     body = "New belts found on Half Sumo:\n\n"
@@ -77,7 +84,6 @@ def send_notification(new_items):
         handle = item.get('handle')
         price = item.get('variants', [{}])[0].get('price', 'N/A')
         link = f"https://halfsumo.com/products/{handle}"
-        
         body += f"- {title} (${price})\n  Link: {link}\n\n"
 
     msg = MIMEMultipart()
@@ -95,6 +101,46 @@ def send_notification(new_items):
         print("Email notification sent.")
     except Exception as e:
         print(f"Failed to send email: {e}")
+
+def send_discord_notification(new_items):
+    """Sends a rich Discord notification."""
+    if not DISCORD_WEBHOOK_URL:
+        print("Discord Webhook URL not set. Skipping discord alert.")
+        return
+
+    print(f"Sending Discord notification...")
+    
+    fields = []
+    for item in new_items:
+        title = item.get('title')
+        handle = item.get('handle')
+        price = item.get('variants', [{}])[0].get('price', 'N/A')
+        link = f"https://halfsumo.com/products/{handle}"
+        
+        fields.append({
+            "name": f"{title} - ${price}",
+            "value": f"[View Product]({link})",
+            "inline": False
+        })
+
+    payload = {
+        "content": "🚨 **New Drops Detected!**",
+        "embeds": [
+            {
+                "title": f"Found {len(new_items)} new '{KEYWORD}' items",
+                "color": 16711680, # Red
+                "fields": fields[:25], 
+                "footer": { "text": "Half Sumo Scraper Bot" }
+            }
+        ]
+    }
+
+    try:
+        response = requests.post(DISCORD_WEBHOOK_URL, json=payload)
+        response.raise_for_status()
+        print("Discord notification sent.")
+    except Exception as e:
+        print(f"Failed to send Discord notification: {e}")
 
 def main():
     print(f"[{datetime.now()}] Checking Half Sumo for '{KEYWORD}'...")
@@ -136,8 +182,10 @@ def main():
 
     # Only email if we actually found something NEW
     if new_finds:
-        print(f"Found {len(new_finds)} NEW items! Sending email...")
-        send_notification(new_finds)
+        print(f"Found {len(new_finds)} NEW items! Sending alerts...")
+        # FIRE BOTH!
+        send_email_notification(new_finds)
+        send_discord_notification(new_finds)
     else:
         print("No NEW belts found (database updated with current stock).")
 
