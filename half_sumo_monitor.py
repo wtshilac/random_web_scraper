@@ -12,8 +12,13 @@ KEYWORD = "belt"
 
 # --- SUPABASE CONFIG ---
 SUPABASE_URL = "https://ewkayuxldehgmehrinyy.supabase.co"
-# Using the Service Role Key allows bypassing RLS policies if needed
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3a2F5dXhsZGVoZ21laHJpbnl5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDYyNDY4NiwiZXhwIjoyMDgwMjAwNjg2fQ.fd3uFsOLGeWzdq2DfxQhnatOxrPpIqhYD8XqxmAgH7Q"
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+
+# Initialize Client
+# We add a check to ensure the key exists before crashing
+if not SUPABASE_KEY:
+    print("CRITICAL ERROR: SUPABASE_KEY not found in environment variables.")
+    exit(1)
 
 # Initialize Client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -22,9 +27,9 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # Pulls from GitHub Actions Secrets (or system env vars)
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
-SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "your_email@gmail.com")
-SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD", "your_app_password")
-RECEIVER_EMAIL = os.environ.get("RECEIVER_EMAIL", "your_email@gmail.com")
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL")
+SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD")
+RECEIVER_EMAIL = os.environ.get("RECEIVER_EMAIL")
 
 def load_existing_ids():
     """Loads all existing product IDs from Supabase to check for duplicates."""

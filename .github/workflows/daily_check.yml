@@ -28,4 +28,5 @@ jobs:
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
           RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python half_sumo_monitor.py
